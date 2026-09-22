@@ -566,11 +566,11 @@
             </div>
 
             <div id="clientMsgPreviewContainer" style="display: none;">
-                <label>Готовое сообщение для клиента:</label>
+                <label>Готовое сообщение для клиента (после диагностики):</label>
                 <div class="msg-box" id="clientMsgPreviewText"></div>
             </div>
 
-            <button class="btn" onclick="saveDiagnosisData()">Сохранить</button>
+            <button class="btn" onclick="saveDiagnosisData()">Сохранить и обновить статус</button>
             <button class="btn" onclick="closeDiagModal()" style="background: #64748b; margin-top: 8px;">Закрыть</button>
         </div>
     </div>
@@ -636,7 +636,6 @@
             return new Date(parts[2], parts[1] - 1, parts[0]);
         }
 
-        // ОБРАБОТЧИК ФОРМЫ (БЕЗ ПЕРЕХОДА НА САЙТ TELEGRAM)
         document.getElementById('orderForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
@@ -648,6 +647,7 @@
             
             const enteredPrice = document.getElementById('price').value.trim();
             const finalPrice = enteredPrice !== '' ? enteredPrice : 'По результатам';
+            const initialStatus = enteredPrice !== '' ? 'В работе' : 'На диагностике';
 
             const newOrder = {
                 createdAt: Date.now(),
@@ -662,14 +662,13 @@
                 name: document.getElementById('client_name').value,
                 phone: document.getElementById('client_phone').value.trim(),
                 deadline: document.getElementById('deadline').value,
-                status: enteredPrice !== '' ? 'В работе' : 'На диагностике',
+                status: initialStatus,
                 date: formattedDate
             };
 
             document.getElementById('orderForm').reset();
             document.getElementById('issue').value = '';
 
-            // Сохранение в Firebase
             if (window.isFirebaseConnected && window.firebaseDb) {
                 try {
                     await window.FB_SDK.addDoc(window.FB_SDK.collection(window.firebaseDb, "orders"), newOrder);
@@ -681,15 +680,7 @@
                 alert("Firebase не подключен!");
             }
             
-            // Автоматическое копирование текста заказа в буфер обмена
-            let tgMessage = `📦 Заказ: ${newOrder.track}\n📱 Устройство: ${newOrder.model}\n🛠 Проблема: ${newOrder.issue}\n💰 Цена: ${newOrder.price}\n👤 Клиент: ${newOrder.name} (${newOrder.phone})`;
-            
-            navigator.clipboard.writeText(tgMessage).then(() => {
-                alert("Заказ успешно принят и сохранен!\nТекст скопирован в буфер обмена — можете вставить его в чат.");
-            }).catch(() => {
-                alert("Заказ успешно принят и сохранен!");
-            });
-
+            alert("Заказ успешно принят и сохранен!");
             switchTab('list');
         });
 
@@ -792,14 +783,15 @@
                 }
             }
             
-            let messageText = `Здравствуйте, ${ord.name}! По вашему устройству (${ord.model}) проведена диагностика.\n`;
+            // Шаблон сообщения после проведенной диагностики
+            let messageText = `Здравствуйте, ${ord.name}! По вашему устройству (${ord.model}, трек: ${ord.track}) проведена диагностика.\n`;
             if (diagResult) messageText += `Диагноз: ${diagResult}.\n`;
-            if (repairType) messageText += `Требуемая замена / ремонт: ${repairType}.\n`;
+            if (repairType) messageText += `Требуемый ремонт: ${repairType}.\n`;
             messageText += `Сумма ремонта составит: ${price}.\n`;
             if (ord.diagRefusalPrice && ord.diagRefusalPrice !== 'нет') {
                 messageText += `В случае отказа от ремонта стоимость сборки/разборки (диагностики): ${ord.diagRefusalPrice}.\n`;
             }
-            messageText += `Ждем вашего ответа!`;
+            messageText += `Ждем вашего ответа! СЦ More Case.`;
 
             document.getElementById('clientMsgPreviewText').textContent = messageText;
             document.getElementById('clientMsgPreviewContainer').style.display = 'block';
@@ -810,14 +802,25 @@
             const ord = orders.find(o => o.firebaseId === firebaseId);
             if (!ord) return;
             
-            let text = `Здравствуйте, ${ord.name}! По устройству ${ord.model} (трек: ${ord.track}). `;
-            if (ord.diagResult) {
-                text += `Диагностика: ${ord.diagResult}. Замена: ${ord.repairType}. Сумма ремонта: ${ord.price}.`;
+            let text = "";
+
+            // ШАБЛОНЫ В ЗАВИСИМОСТИ ОТ СТАТУСА УСТРОЙСТВА
+            if (ord.status === 'Готов') {
+                // Шаблон при готовности устройства
+                text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} (трек: ${ord.track}) отремонтировано и готово к выдаче.\nСумма к оплате: ${ord.price}.\nЖдем вас в сервисном центре More Case!`;
+            } else if (ord.status === 'Готов к согласованию' && ord.diagResult) {
+                // Шаблон после диагностики и согласования цены
+                text = `Здравствуйте, ${ord.name}! По устройству ${ord.model} (трек: ${ord.track}) диагностика завершена.\nДиагноз: ${ord.diagResult}\nРемонт: ${ord.repairType}\nСумма: ${ord.price}.\nЖдем вашего подтверждения!`;
+            } else if (ord.status === 'На диагностике') {
+                // Шаблон при приеме на диагностику
+                text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} принято на диагностику (трек: ${ord.track}). Ожидайте результатов проверки. СЦ More Case.`;
             } else {
-                text += `Заказ принят в работу. Сумма: ${ord.price}.`;
+                // Стандартный шаблон при приеме в работу
+                text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} (трек: ${ord.track}) принято в работу. Сумма: ${ord.price}. Срок: ${ord.deadline}. СЦ More Case.`;
             }
-            if (ord.diagRefusalPrice && ord.diagRefusalPrice !== 'нет') {
-                text += ` В случае отказа за сборку/разборку: ${ord.diagRefusalPrice}.`;
+
+            if (ord.diagRefusalPrice && ord.diagRefusalPrice !== 'нет' && ord.status === 'На диагностике') {
+                text += ` В случае отказа за диагностику: ${ord.diagRefusalPrice}.`;
             }
 
             const encodedText = encodeURIComponent(text);
@@ -826,9 +829,10 @@
             if (channel === 'wa') {
                 window.open(`https://wa.me/${cleanPhone}?text=${encodedText}`, '_blank');
             } else if (channel === 'tg') {
-                // Копируем текст для отправки в Telegram
                 navigator.clipboard.writeText(text).then(() => {
-                    alert("Текст сообщения скопирован в буфер обмена!");
+                    window.open(`https://t.me/share/url?url=&text=${encodedText}`, '_blank');
+                }).catch(() => {
+                    window.open(`https://t.me/share/url?url=&text=${encodedText}`, '_blank');
                 });
             } else if (channel === 'sms') {
                 window.location.href = `sms:+${cleanPhone}?body=${encodedText}`;
@@ -997,3 +1001,4 @@
     </script>
 </body>
 </html>
+
