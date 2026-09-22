@@ -692,7 +692,8 @@
                 phone: document.getElementById('client_phone').value.trim(),
                 deadline: document.getElementById('deadline').value,
                 status: initialStatus,
-                date: formattedDate
+                date: formattedDate,
+                closedDate: ''
             };
 
             document.getElementById('orderForm').reset();
@@ -912,7 +913,8 @@
                             💰 Сумма: <span>${ord.price}</span> ${ord.cost ? `(Закупка: ${ord.cost})` : ''}<br>
                             ${ord.diagRefusalPrice && ord.diagRefusalPrice !== 'нет' ? `⚠️ Диаг. при отказе: <span>${ord.diagRefusalPrice}</span><br>` : ''}
                             👤 Клиент: <span>${ord.name} (${ord.phone})</span><br>
-                            ⏳ Срок: <span>${ord.deadline}</span> | 📅 ${ord.date}
+                            ⏳ Срок: <span>${ord.deadline}</span> | 📅 Принят: ${ord.date}
+                            ${ord.closedDate ? `<br>📦 Выдан: <span style="color: var(--success);">${ord.closedDate}</span>` : ''}
                         </div>
 
                         <div class="actions-grid">
@@ -927,7 +929,7 @@
                                     <button class="btn-mini btn-status" onclick="changeStatus('${uniqueKey}', '${ord.status === 'Готов' ? 'Принят в работу' : 'Готов'}')">
                                         ${ord.status === 'Готов' ? '🔄 В работу' : '✅ Готов'}
                                     </button>
-                                    <button class="btn-mini btn-done" onclick="changeStatus('${uniqueKey}', 'Выдан')">
+                                    <button class="btn-mini btn-done" onclick="markAsDelivered('${uniqueKey}')">
                                         📦 Выдан
                                     </button>
                                 </div>
@@ -962,6 +964,9 @@
             const ord = orders.find(o => o.firebaseId === firebaseId);
             if (!ord) return;
 
+            // Если заказ выдан, показываем дату выдачи, иначе дату приема
+            const displayDate = ord.status === 'Выдан' && ord.closedDate ? ord.closedDate : ord.date;
+
             const modalContainer = document.getElementById('receiptContentContainer');
             modalContainer.innerHTML = `
                 <div class="receipt-header">
@@ -972,7 +977,7 @@
                 <div class="receipt-body">
                     <div><span>Трек-код:</span> <b>${ord.track}</b></div>
                     <div><span>Статус:</span> <b>${ord.status}</b></div>
-                    <div><span>Дата и время:</span> <b>${ord.date}</b></div>
+                    <div><span>Дата и время:</span> <b>${displayDate}</b></div>
                     <div><span>Клиент:</span> <b>${ord.name}</b></div>
                     <div><span>Телефон:</span> <b>${ord.phone}</b></div>
                     <div><span>Устройство:</span> <b>${ord.model}</b></div>
@@ -1006,13 +1011,41 @@
             document.getElementById('printModal').style.display = 'none';
         }
 
+        async function markAsDelivered(firebaseId) {
+            const ord = orders.find(o => o.firebaseId === firebaseId);
+            if (!ord) return;
+
+            const now = new Date();
+            const closedDateFormatted = String(now.getDate()).padStart(2, '0') + '.' + 
+                                        String(now.getMonth() + 1).padStart(2, '0') + '.' + 
+                                        now.getFullYear() + ' ' +
+                                        String(now.getHours()).padStart(2, '0') + ':' +
+                                        String(now.getMinutes()).padStart(2, '0');
+
+            if (window.isFirebaseConnected && window.firebaseDb && ord.firebaseId) {
+                try {
+                    await window.FB_SDK.updateDoc(window.FB_SDK.doc(window.firebaseDb, "orders", ord.firebaseId), { 
+                        status: 'Выдан',
+                        closedDate: closedDateFormatted
+                    });
+                } catch (e) {
+                    console.error("Ошибка смены статуса в Firebase:", e);
+                }
+            }
+        }
+
         async function changeStatus(firebaseId, newStatus) {
             const ord = orders.find(o => o.firebaseId === firebaseId);
             if (!ord) return;
 
+            let updateData = { status: newStatus };
+            if (newStatus !== 'Выдан') {
+                updateData.closedDate = ''; // сбрасываем дату выдачи, если вернули из архива
+            }
+
             if (window.isFirebaseConnected && window.firebaseDb && ord.firebaseId) {
                 try {
-                    await window.FB_SDK.updateDoc(window.FB_SDK.doc(window.firebaseDb, "orders", ord.firebaseId), { status: newStatus });
+                    await window.FB_SDK.updateDoc(window.FB_SDK.doc(window.firebaseDb, "orders", ord.firebaseId), updateData);
                 } catch (e) {
                     console.error("Ошибка смены статуса в Firebase:", e);
                 }
