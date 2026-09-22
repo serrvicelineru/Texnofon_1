@@ -28,15 +28,13 @@
             isFirebaseConnected = true;
             console.log("Firebase успешно подключен!");
         } catch (e) {
-            console.warn("Firebase не настроен или ошибка подключения. Работает локальный режим.", e);
+            console.error("Ошибка подключения Firebase:", e);
         }
 
-        // Экспортируем глобально для использования в скриптах
         window.firebaseDb = db;
         window.isFirebaseConnected = isFirebaseConnected;
         window.FB_SDK = { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy };
         
-        // Событие готовности модуля для старта загрузки
         window.dispatchEvent(new Event('firebase-ready'));
     </script>
 
@@ -147,7 +145,6 @@
         }
         input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); }
 
-        /* Быстрые теги неисправностей */
         .quick-tags {
             display: flex;
             flex-wrap: wrap;
@@ -185,7 +182,6 @@
         }
         .btn:hover { background-color: var(--primary-hover); }
 
-        /* Блок отчетов и аналитики */
         .report-section {
             background: #0f172a;
             border: 1px solid var(--border);
@@ -334,7 +330,6 @@
             padding-top: 15px;
         }
 
-        /* Модальные окна */
         #printModal, #diagModal {
             display: none;
             position: fixed;
@@ -530,7 +525,7 @@
                 <input type="text" id="searchInput" oninput="renderOrders()" placeholder="🔍 Поиск по имени, телефону или треку...">
             </div>
 
-            <div id="ordersContainer"><p style="text-align: center; color: var(--text-muted); padding: 20px;">Загрузка базы данных...</p></div>
+            <div id="ordersContainer"><p style="text-align: center; color: var(--text-muted); padding: 20px;">Загрузка базы данных из Firebase...</p></div>
         </div>
 
         <div class="developer-footer">
@@ -587,7 +582,6 @@
             initDataLayer();
         });
 
-        // На случай если Firebase SDK загрузится мгновенно до слушателя
         setTimeout(() => {
             if (window.FB_SDK && orders.length === 0) {
                 initDataLayer();
@@ -596,7 +590,6 @@
 
         function initDataLayer() {
             if (window.isFirebaseConnected && window.firebaseDb) {
-                // Подключаем живой слушатель Firebase Firestore
                 const q = window.FB_SDK.query(window.FB_SDK.collection(window.firebaseDb, "orders"), window.FB_SDK.orderBy("createdAt", "desc"));
                 window.FB_SDK.onSnapshot(q, (snapshot) => {
                     orders = [];
@@ -605,17 +598,12 @@
                     });
                     saveAndRender();
                 }, (error) => {
-                    console.error("Ошибка при чтении из Firebase, переходим на localStorage:", error);
-                    loadFromLocalStorage();
+                    console.error("Ошибка чтения из Firebase Firestore:", error);
+                    document.getElementById('ordersContainer').innerHTML = '<p style="text-align: center; color: #ef4444; padding: 20px;">Ошибка подключения к Firebase. Проверьте консоль и настройки.</p>';
                 });
             } else {
-                loadFromLocalStorage();
+                document.getElementById('ordersContainer').innerHTML = '<p style="text-align: center; color: #ef4444; padding: 20px;">Firebase не настроен! Укажите ваши ключи в скрипте.</p>';
             }
-        }
-
-        function loadFromLocalStorage() {
-            orders = JSON.parse(localStorage.getItem('more_case_orders')) || [];
-            saveAndRender();
         }
 
         function switchTab(tab) {
@@ -661,7 +649,6 @@
             const finalPrice = enteredPrice !== '' ? enteredPrice : 'По результатам';
 
             const newOrder = {
-                id: Date.now(),
                 createdAt: Date.now(),
                 track: trackCode,
                 model: document.getElementById('model').value,
@@ -678,30 +665,28 @@
                 date: formattedDate
             };
 
+            // Гарантированная полная очистка формы
+            document.getElementById('orderForm').reset();
+            document.getElementById('issue').value = '';
+
             if (window.isFirebaseConnected && window.firebaseDb) {
                 try {
                     await window.FB_SDK.addDoc(window.FB_SDK.collection(window.firebaseDb, "orders"), newOrder);
                 } catch (err) {
                     console.error("Ошибка сохранения в Firebase:", err);
-                    orders.unshift(newOrder);
-                    localStorage.setItem('more_case_orders', JSON.stringify(orders));
+                    alert("Не удалось сохранить заказ в облако. Проверьте соединение.");
                 }
             } else {
-                orders.unshift(newOrder);
-                localStorage.setItem('more_case_orders', JSON.stringify(orders));
+                alert("Firebase не подключен!");
             }
             
             let tgMessage = `📦 *Заказ: ${newOrder.track}*%0A📱 Устройство: ${newOrder.model}%0A🛠 Проблема: ${newOrder.issue}%0A💰 Цена: ${newOrder.price}%0A👤 Клиент: ${newOrder.name} (${newOrder.phone})`;
-            window.open(`https://t.me/jvmpos?text=${tgMessage}`, '_blank');
+            window.open(`https://t.me/share/url?url=&text=${tgMessage}`, '_blank');
 
-            document.getElementById('orderForm').reset();
             switchTab('list');
         });
 
         function saveAndRender() {
-            if (!window.isFirebaseConnected) {
-                localStorage.setItem('more_case_orders', JSON.stringify(orders));
-            }
             const activeOrdersCount = orders.filter(o => o.status !== 'Выдан').length;
             document.getElementById('orderCount').textContent = activeOrdersCount;
             updateStats();
@@ -755,11 +740,11 @@
             document.getElementById('repProfit').textContent = totalProfit.toLocaleString();
         }
 
-        function openDiagModal(id) {
-            const ord = orders.find(o => o.id === id || o.firebaseId === id);
+        function openDiagModal(firebaseId) {
+            const ord = orders.find(o => o.firebaseId === firebaseId);
             if (!ord) return;
 
-            document.getElementById('modalOrderId').value = ord.firebaseId || ord.id;
+            document.getElementById('modalOrderId').value = ord.firebaseId;
             document.getElementById('modalDiagResult').value = ord.diagResult || '';
             document.getElementById('modalRepairType').value = ord.repairType || '';
             document.getElementById('modalPrice').value = ord.price === 'По результатам' ? '' : ord.price;
@@ -781,13 +766,13 @@
             const price = document.getElementById('modalPrice').value;
             const cost = document.getElementById('modalCost').value;
 
-            const ord = orders.find(o => o.id == targetId || o.firebaseId === targetId);
+            const ord = orders.find(o => o.firebaseId === targetId);
             if (!ord) return;
 
             const updatedData = {
                 diagResult: diagResult,
                 repairType: repairType,
-                price: price,
+                price: price || 'По результатам',
                 cost: cost,
                 status: 'Готов к согласованию'
             };
@@ -798,17 +783,8 @@
                 } catch (e) {
                     console.error("Ошибка обновления в Firebase:", e);
                 }
-            } else {
-                orders = orders.map(o => {
-                    if (o.id == targetId) {
-                        Object.assign(o, updatedData);
-                    }
-                    return o;
-                });
-                localStorage.setItem('more_case_orders', JSON.stringify(orders));
             }
             
-            // Формируем текст сообщения для клиента
             let messageText = `Здравствуйте, ${ord.name}! По вашему устройству (${ord.model}) проведена диагностика.\n`;
             if (diagResult) messageText += `Диагноз: ${diagResult}.\n`;
             if (repairType) messageText += `Требуемая замена / ремонт: ${repairType}.\n`;
@@ -823,8 +799,8 @@
             saveAndRender();
         }
 
-        function sendMsg(id, channel) {
-            const ord = orders.find(o => o.id === id || o.firebaseId === id);
+        function sendMsg(firebaseId, channel) {
+            const ord = orders.find(o => o.firebaseId === firebaseId);
             if (!ord) return;
             
             let text = `Здравствуйте, ${ord.name}! По устройству ${ord.model} (трек: ${ord.track}). `;
@@ -838,14 +814,14 @@
             }
 
             const encodedText = encodeURIComponent(text);
-            const cleanPhone = ord.phone.replace(/[^0-9+]/g, '');
+            const cleanPhone = ord.phone.replace(/[^0-9]/g, '');
 
             if (channel === 'wa') {
                 window.open(`https://wa.me/${cleanPhone}?text=${encodedText}`, '_blank');
             } else if (channel === 'tg') {
-                window.open(`https://t.me/+${cleanPhone}?text=${encodedText}`, '_blank');
+                window.open(`https://t.me/share/url?url=&text=${encodedText}`, '_blank');
             } else if (channel === 'sms') {
-                window.location.href = `sms:${cleanPhone}?body=${encodedText}`;
+                window.location.href = `sms:+${cleanPhone}?body=${encodedText}`;
             }
         }
 
@@ -875,7 +851,7 @@
                 if (isReady) statusClass = 'status-ready';
                 if (isDone) statusClass = 'status-done';
 
-                const uniqueKey = ord.firebaseId || ord.id;
+                const uniqueKey = ord.firebaseId;
 
                 const cardHtml = `
                     <div class="order-card ${isDone ? 'archived' : ''}">
@@ -935,8 +911,8 @@
             container.innerHTML = finalHtml;
         }
 
-        function openPrintModal(id) {
-            const ord = orders.find(o => o.id == id || o.firebaseId === id);
+        function openPrintModal(firebaseId) {
+            const ord = orders.find(o => o.firebaseId === firebaseId);
             if (!ord) return;
 
             const modalContainer = document.getElementById('receiptContentContainer');
@@ -981,8 +957,8 @@
             document.getElementById('printModal').style.display = 'none';
         }
 
-        async function changeStatus(id, newStatus) {
-            const ord = orders.find(o => o.id == id || o.firebaseId === id);
+        async function changeStatus(firebaseId, newStatus) {
+            const ord = orders.find(o => o.firebaseId === firebaseId);
             if (!ord) return;
 
             if (window.isFirebaseConnected && window.firebaseDb && ord.firebaseId) {
@@ -991,18 +967,12 @@
                 } catch (e) {
                     console.error("Ошибка смены статуса в Firebase:", e);
                 }
-            } else {
-                orders = orders.map(o => {
-                    if (o.id == id) o.status = newStatus;
-                    return o;
-                });
-                saveAndRender();
             }
         }
 
-        async function deleteOrder(id) {
+        async function deleteOrder(firebaseId) {
             if(confirm('Удалить этот заказ из базы?')) {
-                const ord = orders.find(o => o.id == id || o.firebaseId === id);
+                const ord = orders.find(o => o.firebaseId === firebaseId);
                 if (!ord) return;
 
                 if (window.isFirebaseConnected && window.firebaseDb && ord.firebaseId) {
@@ -1011,9 +981,6 @@
                     } catch (e) {
                         console.error("Ошибка удаления из Firebase:", e);
                     }
-                } else {
-                    orders = orders.filter(o => o.id != id);
-                    saveAndRender();
                 }
             }
         }
