@@ -147,8 +147,8 @@
         input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); }
 
         .quick-tags {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
             gap: 6px;
             margin-bottom: 8px;
         }
@@ -156,13 +156,18 @@
             background: #0f172a;
             border: 1px solid var(--border);
             color: var(--text-muted);
-            padding: 5px 10px;
-            font-size: 11px;
-            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 12px;
+            border-radius: 8px;
             cursor: pointer;
             transition: 0.2s;
+            text-align: left;
         }
         .tag-btn:hover {
+            border-color: var(--primary);
+            color: white;
+        }
+        .tag-btn.active {
             background: var(--primary);
             color: white;
             border-color: var(--primary);
@@ -255,7 +260,7 @@
             margin-bottom: 15px;
         }
         .order-card.archived {
-            opacity: 0.6;
+            opacity: 0.65;
             border-style: dashed;
         }
         .order-header {
@@ -286,6 +291,16 @@
 
         .order-info { font-size: 14px; margin-bottom: 10px; color: var(--text-muted); line-height: 1.5; }
         .order-info span { color: var(--text); font-weight: 500; }
+
+        .master-note-box {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px dashed var(--warning);
+            padding: 8px 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-size: 13px;
+            color: #fde047;
+        }
 
         .actions-grid {
             display: grid;
@@ -453,14 +468,18 @@
                 <div class="form-group">
                     <label>Неисправность / Что делать:</label>
                     <div class="quick-tags">
-                        <button type="button" class="tag-btn" onclick="addIssue('Замена дисплея')">📱 Замена дисплея</button>
-                        <button type="button" class="tag-btn" onclick="addIssue('Замена аккумулятора')">🔋 Замена АКБ</button>
-                        <button type="button" class="tag-btn" onclick="addIssue('Замена разъема зарядки')">🔌 Разъем зарядки</button>
-                        <button type="button" class="tag-btn" onclick="addIssue('Чистка после попадания влаги')">💧 Чистка от воды</button>
-                        <button type="button" class="tag-btn" onclick="addIssue('Замена стекла / крышки')">🛠 Замена стекла</button>
-                        <button type="button" class="tag-btn" onclick="addIssue('Диагностика')">🔍 Диагностика</button>
+                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Замена дисплея')">📱 Замена дисплея</button>
+                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Замена аккумулятора')">🔋 Замена АКБ</button>
+                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Замена разъема зарядки')">🔌 Разъем зарядки</button>
+                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Чистка после попадания влаги')">💧 Чистка от воды</button>
+                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Замена стекла / крышки')">🛠 Замена стекла</button>
+                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Диагностика')">🔍 Диагностика</button>
                     </div>
                     <textarea id="issue" rows="2" required placeholder="Выберите выше или напишите вручную..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>⚠️ Заметка для мастера (только для базы, на квитанции нет):</label>
+                    <input type="text" id="master_note" placeholder="Например: Телефон упал в воду, поврежден лоток сим...">
                 </div>
                 <div class="form-group">
                     <label>Цена ремонта (если известна сразу, иначе пусто):</label>
@@ -622,18 +641,23 @@
             }
         }
 
-        function addIssue(text) {
+        function toggleIssue(btn, text) {
+            btn.classList.toggle('active');
             const issueField = document.getElementById('issue');
-            if (issueField.value.trim() === '') {
-                issueField.value = text;
-            } else {
-                issueField.value += ', ' + text.toLowerCase();
-            }
+            
+            const activeBtns = document.querySelectorAll('.tag-btn.active');
+            let selectedTexts = [];
+            activeBtns.forEach(b => {
+                let cleanText = b.textContent.replace(/^[📱🔋🔌💧🛠🔍]\s*/, '').trim();
+                selectedTexts.push(cleanText);
+            });
+
+            issueField.value = selectedTexts.join(', ');
         }
 
         function parseDate(dateStr) {
             if (!dateStr) return new Date(0);
-            const parts = dateStr.split('.');
+            const parts = dateStr.split(' ')[0].split('.');
             if (parts.length !== 3) return new Date(0);
             return new Date(parts[2], parts[1] - 1, parts[0]);
         }
@@ -645,17 +669,20 @@
             const now = new Date();
             const formattedDate = String(now.getDate()).padStart(2, '0') + '.' + 
                                   String(now.getMonth() + 1).padStart(2, '0') + '.' + 
-                                  now.getFullYear();
+                                  now.getFullYear() + ' ' +
+                                  String(now.getHours()).padStart(2, '0') + ':' +
+                                  String(now.getMinutes()).padStart(2, '0');
             
             const enteredPrice = document.getElementById('price').value.trim();
             const finalPrice = enteredPrice !== '' ? enteredPrice : 'По результатам';
-            const initialStatus = enteredPrice !== '' ? 'В работе' : 'На диагностике';
+            const initialStatus = enteredPrice !== '' ? 'Принят в работу' : 'На диагностике';
 
             const newOrder = {
                 createdAt: Date.now(),
                 track: trackCode,
                 model: document.getElementById('model').value,
                 issue: document.getElementById('issue').value,
+                masterNote: document.getElementById('master_note').value.trim(),
                 diagRefusalPrice: document.getElementById('diag_refusal_price').value.trim() || 'нет',
                 price: finalPrice,
                 cost: document.getElementById('cost').value.trim(),
@@ -670,6 +697,7 @@
 
             document.getElementById('orderForm').reset();
             document.getElementById('issue').value = '';
+            document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
 
             if (window.isFirebaseConnected && window.firebaseDb) {
                 try {
@@ -712,7 +740,7 @@
                     const todayStr = String(now.getDate()).padStart(2, '0') + '.' + 
                                      String(now.getMonth() + 1).padStart(2, '0') + '.' + 
                                      now.getFullYear();
-                    if (ord.date === todayStr) matchPeriod = true;
+                    if (ord.date && ord.date.startsWith(todayStr)) matchPeriod = true;
                 } else if (period === 'week') {
                     const diffDays = (now - orderDate) / (1000 * 60 * 60 * 24);
                     if (diffDays >= 0 && diffDays <= 7) matchPeriod = true;
@@ -846,7 +874,7 @@
             const searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
 
             let filteredOrders = orders.filter(ord => {
-                const matchText = ((ord.track || '') + ' ' + (ord.name || '') + ' ' + (ord.phone || '') + ' ' + (ord.model || '') + ' ' + (ord.issue || '')).toLowerCase();
+                const matchText = ((ord.track || '') + ' ' + (ord.name || '') + ' ' + (ord.phone || '') + ' ' + (ord.model || '') + ' ' + (ord.issue || '') + ' ' + (ord.masterNote || '')).toLowerCase();
                 return matchText.includes(searchQuery);
             });
 
@@ -875,6 +903,7 @@
                             <span class="track-badge">📌 ${ord.track}</span>
                             <span class="status-badge ${statusClass}">${ord.status}</span>
                         </div>
+                        ${ord.masterNote ? `<div class="master-note-box"><b>📝 Заметка мастера:</b> ${ord.masterNote}</div>` : ''}
                         <div class="order-info">
                             📱 Устройство: <span>${ord.model}</span><br>
                             🛠 Проблема: <span>${ord.issue}</span><br>
@@ -895,7 +924,7 @@
                                 <button class="btn-mini btn-print" style="background: var(--primary);" onclick="openDiagModal('${uniqueKey}')">⚙️ Заполнить результаты</button>
                                 <button class="btn-mini btn-print" onclick="openPrintModal('${uniqueKey}')">🖨 Печать квитанции</button>
                                 <div class="btn-status-group">
-                                    <button class="btn-mini btn-status" onclick="changeStatus('${uniqueKey}', '${ord.status === 'Готов' ? 'В работе' : 'Готов'}')">
+                                    <button class="btn-mini btn-status" onclick="changeStatus('${uniqueKey}', '${ord.status === 'Готов' ? 'Принят в работу' : 'Готов'}')">
                                         ${ord.status === 'Готов' ? '🔄 В работу' : '✅ Готов'}
                                     </button>
                                     <button class="btn-mini btn-done" onclick="changeStatus('${uniqueKey}', 'Выдан')">
@@ -903,7 +932,8 @@
                                     </button>
                                 </div>
                             ` : `
-                                <button class="btn-mini btn-status" style="grid-column: span 4;" onclick="changeStatus('${uniqueKey}', 'Готов')">
+                                <button class="btn-mini btn-print" onclick="openPrintModal('${uniqueKey}')">🖨 Печать квитанции</button>
+                                <button class="btn-mini btn-status" style="grid-column: span 4; margin-top: 4px;" onclick="changeStatus('${uniqueKey}', 'Готов')">
                                     🔄 Вернуть из архива
                                 </button>
                             `}
@@ -941,7 +971,8 @@
                 </div>
                 <div class="receipt-body">
                     <div><span>Трек-код:</span> <b>${ord.track}</b></div>
-                    <div><span>Дата приема:</span> <b>${ord.date}</b></div>
+                    <div><span>Статус:</span> <b>${ord.status}</b></div>
+                    <div><span>Дата и время:</span> <b>${ord.date}</b></div>
                     <div><span>Клиент:</span> <b>${ord.name}</b></div>
                     <div><span>Телефон:</span> <b>${ord.phone}</b></div>
                     <div><span>Устройство:</span> <b>${ord.model}</b></div>
