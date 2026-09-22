@@ -156,12 +156,13 @@
             background: #0f172a;
             border: 1px solid var(--border);
             color: var(--text-muted);
-            padding: 8px 10px;
-            font-size: 12px;
+            padding: 10px;
+            font-size: 13px;
             border-radius: 8px;
             cursor: pointer;
             transition: 0.2s;
-            text-align: left;
+            text-align: center;
+            font-weight: 500;
         }
         .tag-btn:hover {
             border-color: var(--primary);
@@ -468,12 +469,12 @@
                 <div class="form-group">
                     <label>Неисправность / Что делать:</label>
                     <div class="quick-tags">
-                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Замена дисплея')">📱 Замена дисплея</button>
-                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Замена аккумулятора')">🔋 Замена АКБ</button>
-                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Замена разъема зарядки')">🔌 Разъем зарядки</button>
-                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Чистка после попадания влаги')">💧 Чистка от воды</button>
-                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Замена стекла / крышки')">🛠 Замена стекла</button>
-                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Диагностика')">🔍 Диагностика</button>
+                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Замена дисплея')">Замена дисплея</button>
+                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Замена аккумулятора')">Замена АКБ</button>
+                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Замена разъема зарядки')">Разъем зарядки</button>
+                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Чистка после попадания влаги')">Чистка от воды</button>
+                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Замена стекла / крышки')">Замена стекла</button>
+                        <button type="button" class="tag-btn" onclick="toggleIssue(this, 'Диагностика')">Диагностика</button>
                     </div>
                     <textarea id="issue" rows="2" required placeholder="Выберите выше или напишите вручную..."></textarea>
                 </div>
@@ -648,8 +649,7 @@
             const activeBtns = document.querySelectorAll('.tag-btn.active');
             let selectedTexts = [];
             activeBtns.forEach(b => {
-                let cleanText = b.textContent.replace(/^[📱🔋🔌💧🛠🔍]\s*/, '').trim();
-                selectedTexts.push(cleanText);
+                selectedTexts.push(b.textContent.trim());
             });
 
             issueField.value = selectedTexts.join(', ');
