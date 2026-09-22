@@ -51,6 +51,7 @@
             --warning: #f59e0b;
             --whatsapp: #25d366;
             --telegram: #0088cc;
+            --max-messenger: #1083ff;
             --sms: #8b5cf6;
             --purple: #a855f7;
         }
@@ -288,7 +289,7 @@
 
         .actions-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: repeat(4, 1fr);
             gap: 6px;
         }
         .btn-mini {
@@ -304,22 +305,23 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            gap: 2px;
             box-sizing: border-box;
         }
         .btn-wa { background: var(--whatsapp); }
         .btn-tg { background: var(--telegram); }
+        .btn-max { background: var(--max-messenger); }
         .btn-sms { background: var(--sms); }
-        .btn-print { background: #475569; grid-column: span 3; }
+        .btn-print { background: #475569; grid-column: span 4; }
         .btn-status-group {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 6px;
-            grid-column: span 3;
+            grid-column: span 4;
         }
         .btn-status { background: #334155; }
         .btn-done { background: var(--purple); }
-        .btn-del { background: #7f1d1d; grid-column: span 3; margin-top: 4px; }
+        .btn-del { background: #7f1d1d; grid-column: span 4; margin-top: 4px; }
         
         .archive-title {
             font-size: 14px;
@@ -783,7 +785,6 @@
                 }
             }
             
-            // Шаблон сообщения после проведенной диагностики
             let messageText = `Здравствуйте, ${ord.name}! По вашему устройству (${ord.model}, трек: ${ord.track}) проведена диагностика.\n`;
             if (diagResult) messageText += `Диагноз: ${diagResult}.\n`;
             if (repairType) messageText += `Требуемый ремонт: ${repairType}.\n`;
@@ -804,18 +805,13 @@
             
             let text = "";
 
-            // ШАБЛОНЫ В ЗАВИСИМОСТИ ОТ СТАТУСА УСТРОЙСТВА
             if (ord.status === 'Готов') {
-                // Шаблон при готовности устройства
                 text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} (трек: ${ord.track}) отремонтировано и готово к выдаче.\nСумма к оплате: ${ord.price}.\nЖдем вас в сервисном центре More Case!`;
             } else if (ord.status === 'Готов к согласованию' && ord.diagResult) {
-                // Шаблон после диагностики и согласования цены
                 text = `Здравствуйте, ${ord.name}! По устройству ${ord.model} (трек: ${ord.track}) диагностика завершена.\nДиагноз: ${ord.diagResult}\nРемонт: ${ord.repairType}\nСумма: ${ord.price}.\nЖдем вашего подтверждения!`;
             } else if (ord.status === 'На диагностике') {
-                // Шаблон при приеме на диагностику
                 text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} принято на диагностику (трек: ${ord.track}). Ожидайте результатов проверки. СЦ More Case.`;
             } else {
-                // Стандартный шаблон при приеме в работу
                 text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} (трек: ${ord.track}) принято в работу. Сумма: ${ord.price}. Срок: ${ord.deadline}. СЦ More Case.`;
             }
 
@@ -830,9 +826,15 @@
                 window.open(`https://wa.me/${cleanPhone}?text=${encodedText}`, '_blank');
             } else if (channel === 'tg') {
                 navigator.clipboard.writeText(text).then(() => {
-                    window.open(`https://t.me/share/url?url=&text=${encodedText}`, '_blank');
+                    window.location.href = `tg://resolve?phone=${cleanPhone}&text=${encodedText}`;
                 }).catch(() => {
-                    window.open(`https://t.me/share/url?url=&text=${encodedText}`, '_blank');
+                    window.location.href = `tg://resolve?phone=${cleanPhone}&text=${encodedText}`;
+                });
+            } else if (channel === 'max') {
+                navigator.clipboard.writeText(text).then(() => {
+                    window.open(`https://max.ru`, '_blank');
+                }).catch(() => {
+                    window.open(`https://max.ru`, '_blank');
                 });
             } else if (channel === 'sms') {
                 window.location.href = `sms:+${cleanPhone}?body=${encodedText}`;
@@ -888,6 +890,7 @@
                             ${!isDone ? `
                                 <button class="btn-mini btn-wa" onclick="sendMsg('${uniqueKey}', 'wa')">💬 WA</button>
                                 <button class="btn-mini btn-tg" onclick="sendMsg('${uniqueKey}', 'tg')">✈️ TG</button>
+                                <button class="btn-mini btn-max" onclick="sendMsg('${uniqueKey}', 'max')">Ⓜ️ MX</button>
                                 <button class="btn-mini btn-sms" onclick="sendMsg('${uniqueKey}', 'sms')">✉️ SMS</button>
                                 <button class="btn-mini btn-print" style="background: var(--primary);" onclick="openDiagModal('${uniqueKey}')">⚙️ Заполнить результаты</button>
                                 <button class="btn-mini btn-print" onclick="openPrintModal('${uniqueKey}')">🖨 Печать квитанции</button>
@@ -900,7 +903,7 @@
                                     </button>
                                 </div>
                             ` : `
-                                <button class="btn-mini btn-status" style="grid-column: span 3;" onclick="changeStatus('${uniqueKey}', 'Готов')">
+                                <button class="btn-mini btn-status" style="grid-column: span 4;" onclick="changeStatus('${uniqueKey}', 'Готов')">
                                     🔄 Вернуть из архива
                                 </button>
                             `}
