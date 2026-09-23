@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>More Case — Система приема и учета ремонтов</title>
+    <title>TEXNOFON — Система приема и учета ремонтов</title>
     <!-- Firebase SDK (Modular) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -451,7 +451,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>More Case</h1>
+            <h1>TEXNOFON</h1>
             <p>Система приема и учета ремонтов</p>
             <div class="nav-tabs">
                 <button class="tab-btn active" onclick="switchTab('new')">➕ Новый заказ</button>
@@ -665,7 +665,7 @@
         document.getElementById('orderForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const trackCode = 'MC-' + Math.floor(1000 + Math.random() * 9000);
+            const trackCode = 'TEX-' + Math.floor(1000 + Math.random() * 9000);
             const now = new Date();
             const formattedDate = String(now.getDate()).padStart(2, '0') + '.' + 
                                   String(now.getMonth() + 1).padStart(2, '0') + '.' + 
@@ -821,7 +821,7 @@
             if (ord.diagRefusalPrice && ord.diagRefusalPrice !== 'нет') {
                 messageText += `В случае отказа от ремонта стоимость сборки/разборки (диагностики): ${ord.diagRefusalPrice}.\n`;
             }
-            messageText += `Ждем вашего ответа! СЦ More Case.`;
+            messageText += `Ждем вашего ответа! СЦ TEXNOFON.`;
 
             document.getElementById('clientMsgPreviewText').textContent = messageText;
             document.getElementById('clientMsgPreviewContainer').style.display = 'block';
@@ -835,13 +835,13 @@
             let text = "";
 
             if (ord.status === 'Готов') {
-                text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} (трек: ${ord.track}) отремонтировано и готово к выдаче.\nСумма к оплате: ${ord.price}.\nЖдем вас в сервисном центре More Case!`;
+                text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} (трек: ${ord.track}) отремонтировано и готово к выдаче.\nСумма к оплате: ${ord.price}.\nЖдем вас в сервисном центре TEXNOFON!`;
             } else if (ord.status === 'Готов к согласованию' && ord.diagResult) {
                 text = `Здравствуйте, ${ord.name}! По устройству ${ord.model} (трек: ${ord.track}) диагностика завершена.\nДиагноз: ${ord.diagResult}\nРемонт: ${ord.repairType}\nСумма: ${ord.price}.\nЖдем вашего подтверждения!`;
             } else if (ord.status === 'На диагностике') {
-                text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} принято на диагностику (трек: ${ord.track}). Ожидайте результатов проверки. СЦ More Case.`;
+                text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} принято на диагностику (трек: ${ord.track}). Ожидайте результатов проверки. СЦ TEXNOFON.`;
             } else {
-                text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} (трек: ${ord.track}) принято в работу. Сумма: ${ord.price}. Срок: ${ord.deadline}. СЦ More Case.`;
+                text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} (трек: ${ord.track}) принято в работу. Сумма: ${ord.price}. Срок: ${ord.deadline}. СЦ TEXNOFON.`;
             }
 
             if (ord.diagRefusalPrice && ord.diagRefusalPrice !== 'нет' && ord.status === 'На диагностике') {
@@ -970,7 +970,7 @@
             const modalContainer = document.getElementById('receiptContentContainer');
             modalContainer.innerHTML = `
                 <div class="receipt-header">
-                    <h2>MORE CASE</h2>
+                    <h2>TEXNOFON</h2>
                     <p>${isDone ? 'Квитанция о выдаче' : 'Квитанция приема в ремонт'}</p>
                     <p style="margin-top: 4px; font-weight: bold; font-size: 11px;">Режим работы: ежедневно с 10:00 до 21:00</p>
                 </div>
@@ -1000,7 +1000,7 @@
                     </div>
                 </div>
                 <div class="receipt-footer">
-                    Спасибо, что выбрали More Case!<br>
+                    Спасибо, что выбрали TEXNOFON!<br>
                     ${isDone ? 'Аппарат выдан исправным, претензий не имею.' : 'Сохраняйте квитанцию до выдачи аппарата.'}
                 </div>
             `;
