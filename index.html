@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TEXNOFON — Система приема и учета ремонтов</title>
+    <title>More Case — Система приема и учета ремонтов</title>
     <!-- Firebase SDK (Modular) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // Ваши настройки Firebase
+        // Новые настройки Firebase для проекта More Case
         const firebaseConfig = {
           apiKey: "AIzaSyAA93fSl7LjsA45MTmmoSF1JuacvT1Es9k",
-          authDomain: "texnofon.firebaseapp.com",
-          projectId: "texnofon",
-          storageBucket: "texnofon.firebasestorage.app",
+          authDomain: "morecase-d1b59.firebaseapp.com",
+          projectId: "morecase-d1b59",
+          storageBucket: "morecase-d1b59.firebasestorage.app",
           messagingSenderId: "1003820502664",
           appId: "1:1003820502664:web:f0db687d0b54b6f095593d"
         };
@@ -26,7 +26,7 @@
             const app = initializeApp(firebaseConfig);
             db = getFirestore(app);
             isFirebaseConnected = true;
-            console.log("Firebase успешно подключен!");
+            console.log("Firebase More Case успешно подключен!");
         } catch (e) {
             console.error("Ошибка подключения Firebase:", e);
         }
@@ -97,7 +97,7 @@
         }
         .nav-tabs {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             width: 100%;
             margin-top: 12px;
         }
@@ -106,11 +106,11 @@
             background: #0f172a;
             color: var(--text-muted);
             border: 1px solid var(--border);
-            padding: 10px;
+            padding: 8px 4px;
             border-radius: 10px;
             cursor: pointer;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 13px;
             transition: 0.2s;
             text-align: center;
         }
@@ -253,7 +253,7 @@
             margin-bottom: 15px;
         }
 
-        .order-card {
+        .order-card, .part-card {
             background: #0f172a;
             border: 1px solid var(--border);
             border-radius: 14px;
@@ -348,7 +348,7 @@
             padding-top: 15px;
         }
 
-        #printModal, #diagModal {
+        #printModal, #diagModal, #partModal {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -405,7 +405,7 @@
         }
         .receipt-footer { text-align: center; font-size: 10px; color: #64748b; border-top: 1px dashed #cbd5e1; padding-top: 10px; margin-top: 10px; }
 
-        .diag-content {
+        .diag-content, .part-modal-content {
             background: var(--card-bg);
             border: 1px solid var(--border);
             color: var(--text);
@@ -451,11 +451,12 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>TEXNOFON</h1>
+            <h1>MORE CASE</h1>
             <p>Система приема и учета ремонтов</p>
             <div class="nav-tabs">
-                <button class="tab-btn active" onclick="switchTab('new')">➕ Новый заказ</button>
+                <button class="tab-btn active" onclick="switchTab('new')">➕ Новый</button>
                 <button class="tab-btn" onclick="switchTab('list')">📋 База (<span id="orderCount">0</span>)</button>
+                <button class="tab-btn" onclick="switchTab('warehouse')">📦 Склад</button>
             </div>
         </div>
 
@@ -479,19 +480,25 @@
                     <textarea id="issue" rows="2" required placeholder="Выберите выше или напишите вручную..."></textarea>
                 </div>
                 <div class="form-group">
+                    <label>📦 Запчасть со склада (авто-подстановка):</label>
+                    <select id="warehousePartSelect" onchange="selectPartFromWarehouse()">
+                        <option value="">-- Выберите запчасть со склада (необязательно) --</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>⚠️ Заметка для мастера (только для базы, на квитанции нет):</label>
                     <input type="text" id="master_note" placeholder="Например: Телефон упал в воду, поврежден лоток сим...">
                 </div>
                 <div class="form-group">
-                    <label>Цена ремонта (если известна сразу, иначе пусто):</label>
-                    <input type="text" id="price" placeholder="Например: 5000 руб. (или пусто)">
+                    <label>Цена ремонта (руб.):</label>
+                    <input type="text" id="price" placeholder="Например: 5000 (или пусто)">
                 </div>
                 <div class="form-group">
-                    <label>Себестоимость запчасти / расход:</label>
-                    <input type="text" id="cost" placeholder="Например: 2500 руб. (если есть)">
+                    <label>Себестоимость запчасти / расход (руб.):</label>
+                    <input type="text" id="cost" placeholder="Например: 2500 (или авто со склада)">
                 </div>
                 <div class="form-group">
-                    <label>Сумма за диагностику (в случае отказа за сборку/разборку):</label>
+                    <label>Сумма за диагностику (при отказе):</label>
                     <input type="text" id="diag_refusal_price" placeholder="Например: 500 руб.">
                 </div>
                 <div class="form-group">
@@ -550,6 +557,20 @@
             <div id="ordersContainer"><p style="text-align: center; color: var(--text-muted); padding: 20px;">Загрузка базы данных из Firebase...</p></div>
         </div>
 
+        <!-- ВКЛАДКА 3: СКЛАД ЗАПЧАСТЕЙ -->
+        <div id="tab-warehouse" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <span style="font-size: 15px; font-weight: bold; color: #60a5fa;">📦 Учет запчастей на складе</span>
+                <button class="btn" style="width: auto; padding: 8px 14px; margin: 0; font-size: 13px;" onclick="openPartModal()">➕ Добавить деталь</button>
+            </div>
+
+            <div class="search-box">
+                <input type="text" id="searchPartInput" oninput="renderWarehouse()" placeholder="🔍 Поиск запчасти по названию или модели...">
+            </div>
+
+            <div id="warehouseContainer"><p style="text-align: center; color: var(--text-muted); padding: 20px;">Загрузка склада...</p></div>
+        </div>
+
         <div class="developer-footer">
             Разработчик: <a href="https://t.me/jvmpos" target="_blank">@jvmpos</a>
         </div>
@@ -564,7 +585,7 @@
         </div>
     </div>
 
-    <!-- Модальное окно редактирования результатов диагностики -->
+    <!-- Модальное окно результатов диагностики -->
     <div id="diagModal">
         <div class="diag-content">
             <h3 style="margin-top: 0; color: #60a5fa;">Результат диагностики и ремонта</h3>
@@ -580,11 +601,11 @@
             </div>
             <div class="form-group">
                 <label>Итоговая сумма ремонта (руб.):</label>
-                <input type="text" id="modalPrice" placeholder="Например: 3500 руб.">
+                <input type="text" id="modalPrice" placeholder="Например: 3500">
             </div>
             <div class="form-group">
                 <label>Закупка запчасти (себестоимость для отчета):</label>
-                <input type="text" id="modalCost" placeholder="Например: 1200 руб.">
+                <input type="text" id="modalCost" placeholder="Например: 1200">
             </div>
 
             <div id="clientMsgPreviewContainer" style="display: none;">
@@ -597,8 +618,36 @@
         </div>
     </div>
 
+    <!-- Модальное окно добавления/редактирования запчасти -->
+    <div id="partModal">
+        <div class="part-modal-content">
+            <h3 style="margin-top: 0; color: #60a5fa;" id="partModalTitle">Добавить запчасть</h3>
+            <input type="hidden" id="editPartId">
+            <div class="form-group">
+                <label>Название запчасти:</label>
+                <input type="text" id="partName" placeholder="Например: Дисплей Samsung A24 / АКБ iPhone 11">
+            </div>
+            <div class="form-group">
+                <label>Модель телефона:</label>
+                <input type="text" id="partModel" placeholder="Например: Samsung Galaxy A24">
+            </div>
+            <div class="form-group">
+                <label>Количество (шт.):</label>
+                <input type="number" id="partQuantity" value="1" min="0">
+            </div>
+            <div class="form-group">
+                <label>Себестоимость (закупка, руб.):</label>
+                <input type="text" id="partCost" placeholder="Например: 1500">
+            </div>
+            <button class="btn" onclick="savePartToWarehouse()">Сохранить на склад</button>
+            <button class="btn" onclick="closePartModal()" style="background: #64748b; margin-top: 8px;">Закрыть</button>
+        </div>
+    </div>
+
     <script>
         let orders = [];
+        let warehouse = [];
+        let selectedWarehousePartId = null;
 
         window.addEventListener('firebase-ready', () => {
             initDataLayer();
@@ -612,19 +661,35 @@
 
         function initDataLayer() {
             if (window.isFirebaseConnected && window.firebaseDb) {
-                const q = window.FB_SDK.query(window.FB_SDK.collection(window.firebaseDb, "orders"), window.FB_SDK.orderBy("createdAt", "desc"));
-                window.FB_SDK.onSnapshot(q, (snapshot) => {
+                // Загрузка заказов
+                const qOrders = window.FB_SDK.query(window.FB_SDK.collection(window.firebaseDb, "orders"), window.FB_SDK.orderBy("createdAt", "desc"));
+                window.FB_SDK.onSnapshot(qOrders, (snapshot) => {
                     orders = [];
                     snapshot.forEach((docSnap) => {
                         orders.push({ firebaseId: docSnap.id, ...docSnap.data() });
                     });
                     saveAndRender();
                 }, (error) => {
-                    console.error("Ошибка чтения из Firebase Firestore:", error);
-                    document.getElementById('ordersContainer').innerHTML = '<p style="text-align: center; color: #ef4444; padding: 20px;">Ошибка подключения к Firebase. Проверьте консоль и настройки.</p>';
+                    console.error("Ошибка чтения заказов:", error);
                 });
+
+                // Загрузка склада
+                const qWarehouse = window.FB_SDK.query(window.FB_SDK.collection(window.firebaseDb, "warehouse"), window.FB_SDK.orderBy("name"));
+                window.FB_SDK.onSnapshot(qWarehouse, (snapshot) => {
+                    warehouse = [];
+                    snapshot.forEach((docSnap) => {
+                        warehouse.push({ firebaseId: docSnap.id, ...docSnap.data() });
+                    });
+                    updateWarehouseSelect();
+                    if (document.getElementById('tab-warehouse').classList.contains('active')) {
+                        renderWarehouse();
+                    }
+                }, (error) => {
+                    console.error("Ошибка чтения склада:", error);
+                });
+
             } else {
-                document.getElementById('ordersContainer').innerHTML = '<p style="text-align: center; color: #ef4444; padding: 20px;">Firebase не настроен! Укажите ваши ключи в скрипте.</p>';
+                document.getElementById('ordersContainer').innerHTML = '<p style="text-align: center; color: #ef4444; padding: 20px;">Firebase не настроен!</p>';
             }
         }
 
@@ -635,10 +700,14 @@
             if(tab === 'new') {
                 document.getElementById('tab-new').classList.add('active');
                 document.querySelectorAll('.tab-btn')[0].classList.add('active');
-            } else {
+            } else if(tab === 'list') {
                 document.getElementById('tab-list').classList.add('active');
                 document.querySelectorAll('.tab-btn')[1].classList.add('active');
                 renderOrders();
+            } else if(tab === 'warehouse') {
+                document.getElementById('tab-warehouse').classList.add('active');
+                document.querySelectorAll('.tab-btn')[2].classList.add('active');
+                renderWarehouse();
             }
         }
 
@@ -655,6 +724,34 @@
             issueField.value = selectedTexts.join(', ');
         }
 
+        function updateWarehouseSelect() {
+            const select = document.getElementById('warehousePartSelect');
+            select.innerHTML = '<option value="">-- Выберите запчасть со склада (необязательно) --</option>';
+            warehouse.forEach(p => {
+                if(p.quantity > 0) {
+                    select.innerHTML += `<option value="${p.firebaseId}">${p.name} (${p.model}) — Остаток: ${p.quantity} шт. | Закупка: ${p.cost} руб.</option>`;
+                }
+            });
+        }
+
+        function selectPartFromWarehouse() {
+            const selectId = document.getElementById('warehousePartSelect').value;
+            if(!selectId) {
+                selectedWarehousePartId = null;
+                return;
+            }
+            const part = warehouse.find(p => p.firebaseId === selectId);
+            if(part) {
+                selectedWarehousePartId = part.firebaseId;
+                document.getElementById('cost').value = part.cost || '';
+                document.getElementById('model').value = part.model || '';
+                const currentIssue = document.getElementById('issue').value;
+                if(!currentIssue) {
+                    document.getElementById('issue').value = part.name;
+                }
+            }
+        }
+
         function parseDate(dateStr) {
             if (!dateStr) return new Date(0);
             const parts = dateStr.split(' ')[0].split('.');
@@ -665,7 +762,7 @@
         document.getElementById('orderForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const trackCode = 'TEX-' + Math.floor(1000 + Math.random() * 9000);
+            const trackCode = 'MC-' + Math.floor(1000 + Math.random() * 9000);
             const now = new Date();
             const formattedDate = String(now.getDate()).padStart(2, '0') + '.' + 
                                   String(now.getMonth() + 1).padStart(2, '0') + '.' + 
@@ -693,25 +790,39 @@
                 deadline: document.getElementById('deadline').value,
                 status: initialStatus,
                 date: formattedDate,
-                closedDate: ''
+                closedDate: '',
+                warehousePartId: selectedWarehousePartId || ''
             };
+
+            // Автоматическое списание со склада, если была выбрана запчасть
+            if (selectedWarehousePartId && window.isFirebaseConnected && window.firebaseDb) {
+                const part = warehouse.find(p => p.firebaseId === selectedWarehousePartId);
+                if (part && part.quantity > 0) {
+                    try {
+                        await window.FB_SDK.updateDoc(window.FB_SDK.doc(window.firebaseDb, "warehouse", part.firebaseId), {
+                            quantity: Number(part.quantity) - 1
+                        });
+                    } catch (err) {
+                        console.error("Ошибка списания со склада:", err);
+                    }
+                }
+            }
 
             document.getElementById('orderForm').reset();
             document.getElementById('issue').value = '';
             document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
+            selectedWarehousePartId = null;
 
             if (window.isFirebaseConnected && window.firebaseDb) {
                 try {
                     await window.FB_SDK.addDoc(window.FB_SDK.collection(window.firebaseDb, "orders"), newOrder);
                 } catch (err) {
-                    console.error("Ошибка сохранения в Firebase:", err);
-                    alert("Не удалось сохранить заказ в облако. Проверьте соединение.");
+                    console.error("Ошибка сохранения заказа:", err);
+                    alert("Не удалось сохранить заказ в облако.");
                 }
-            } else {
-                alert("Firebase не подключен!");
             }
             
-            alert("Заказ успешно принят и сохранен!");
+            alert("Заказ успешно принят и сохранен в More Case!");
             switchTab('list');
         });
 
@@ -769,6 +880,111 @@
             document.getElementById('repProfit').textContent = totalProfit.toLocaleString();
         }
 
+        // --- Управление складом ---
+        function openPartModal(partId = null) {
+            document.getElementById('editPartId').value = '';
+            document.getElementById('partName').value = '';
+            document.getElementById('partModel').value = '';
+            document.getElementById('partQuantity').value = '1';
+            document.getElementById('partCost').value = '';
+            document.getElementById('partModalTitle').textContent = 'Добавить запчасть';
+
+            if(partId) {
+                const p = warehouse.find(item => item.firebaseId === partId);
+                if(p) {
+                    document.getElementById('editPartId').value = p.firebaseId;
+                    document.getElementById('partName').value = p.name || '';
+                    document.getElementById('partModel').value = p.model || '';
+                    document.getElementById('partQuantity').value = p.quantity || 0;
+                    document.getElementById('partCost').value = p.cost || '';
+                    document.getElementById('partModalTitle').textContent = 'Редактировать запчасть';
+                }
+            }
+            document.getElementById('partModal').style.display = 'flex';
+        }
+
+        function closePartModal() {
+            document.getElementById('partModal').style.display = 'none';
+        }
+
+        async function savePartToWarehouse() {
+            const partId = document.getElementById('editPartId').value;
+            const name = document.getElementById('partName').value.trim();
+            const model = document.getElementById('partModel').value.trim();
+            const quantity = parseInt(document.getElementById('partQuantity').value) || 0;
+            const cost = document.getElementById('partCost').value.trim();
+
+            if(!name) {
+                alert('Введите название запчасти!');
+                return;
+            }
+
+            const partData = { name, model, quantity, cost };
+
+            if(window.isFirebaseConnected && window.firebaseDb) {
+                try {
+                    if(partId) {
+                        await window.FB_SDK.updateDoc(window.FB_SDK.doc(window.firebaseDb, "warehouse", partId), partData);
+                    } else {
+                        await window.FB_SDK.addDoc(window.FB_SDK.collection(window.firebaseDb, "warehouse"), partData);
+                    }
+                } catch(e) {
+                    console.error("Ошибка сохранения запчасти:", e);
+                }
+            }
+            closePartModal();
+        }
+
+        async function deletePart(partId) {
+            if(confirm('Удалить эту запчасть со склада?')) {
+                if(window.isFirebaseConnected && window.firebaseDb) {
+                    try {
+                        await window.FB_SDK.deleteDoc(window.FB_SDK.doc(window.firebaseDb, "warehouse", partId));
+                    } catch(e) {
+                        console.error("Ошибка удаления запчасти:", e);
+                    }
+                }
+            }
+        }
+
+        function renderWarehouse() {
+            const container = document.getElementById('warehouseContainer');
+            const searchQuery = document.getElementById('searchPartInput').value.toLowerCase().trim();
+
+            let filtered = warehouse.filter(p => {
+                return (p.name + ' ' + (p.model || '')).toLowerCase().includes(searchQuery);
+            });
+
+            if(filtered.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">На складе ничего не найдено</p>';
+                return;
+            }
+
+            let html = '';
+            filtered.forEach(p => {
+                html += `
+                    <div class="part-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-weight: bold; color: #60a5fa; font-size: 15px;">📦 ${p.name}</span>
+                            <span style="background: ${p.quantity > 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}; color: ${p.quantity > 0 ? 'var(--success)' : '#ef4444'}; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">
+                                Остаток: ${p.quantity} шт.
+                            </span>
+                        </div>
+                        <div class="order-info">
+                            📱 Модель: <span>${p.model || 'Универсальная'}</span><br>
+                            💰 Закупка: <span>${p.cost ? p.cost + ' руб.' : 'не указана'}</span>
+                        </div>
+                        <div style="display: flex; gap: 6px; margin-top: 10px;">
+                            <button class="btn-mini" style="background: var(--primary); flex: 1; padding: 8px;" onclick="openPartModal('${p.firebaseId}')">✏️ Изменить</button>
+                            <button class="btn-mini" style="background: #7f1d1d; flex: 1; padding: 8px;" onclick="deletePart('${p.firebaseId}')">🗑 Удалить</button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        // --- Диагностика и сообщения ---
         function openDiagModal(firebaseId) {
             const ord = orders.find(o => o.firebaseId === firebaseId);
             if (!ord) return;
@@ -810,18 +1026,18 @@
                 try {
                     await window.FB_SDK.updateDoc(window.FB_SDK.doc(window.firebaseDb, "orders", ord.firebaseId), updatedData);
                 } catch (e) {
-                    console.error("Ошибка обновления в Firebase:", e);
+                    console.error("Ошибка обновления:", e);
                 }
             }
             
-            let messageText = `Здравствуйте, ${ord.name}! По вашему устройству (${ord.model}, трек: ${ord.track}) проведена диагностика.\n`;
+            let messageText = `Здравствуйте, ${ord.name}! По вашему устройству (${ord.model}, трек: ${ord.track}) проведена диагностика в More Case.\n`;
             if (diagResult) messageText += `Диагноз: ${diagResult}.\n`;
             if (repairType) messageText += `Требуемый ремонт: ${repairType}.\n`;
             messageText += `Сумма ремонта составит: ${price}.\n`;
             if (ord.diagRefusalPrice && ord.diagRefusalPrice !== 'нет') {
                 messageText += `В случае отказа от ремонта стоимость сборки/разборки (диагностики): ${ord.diagRefusalPrice}.\n`;
             }
-            messageText += `Ждем вашего ответа! СЦ TEXNOFON.`;
+            messageText += `Ждем вашего ответа! СЦ More Case.`;
 
             document.getElementById('clientMsgPreviewText').textContent = messageText;
             document.getElementById('clientMsgPreviewContainer').style.display = 'block';
@@ -835,13 +1051,13 @@
             let text = "";
 
             if (ord.status === 'Готов') {
-                text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} (трек: ${ord.track}) отремонтировано и готово к выдаче.\nСумма к оплате: ${ord.price}.\nЖдем вас в сервисном центре TEXNOFON!`;
+                text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} (трек: ${ord.track}) отремонтировано и готово к выдаче.\nСумма к оплате: ${ord.price}.\nЖдем вас в сервисном центре More Case!`;
             } else if (ord.status === 'Готов к согласованию' && ord.diagResult) {
-                text = `Здравствуйте, ${ord.name}! По устройству ${ord.model} (трек: ${ord.track}) диагностика завершена.\nДиагноз: ${ord.diagResult}\nРемонт: ${ord.repairType}\nСумма: ${ord.price}.\nЖдем вашего подтверждения!`;
+                text = `Здравствуйте, ${ord.name}! По устройству ${ord.model} (трек: ${ord.track}) диагностика завершена.\nДиагноз: ${ord.diagResult}\nРемонт: ${ord.repairType}\nСумма: ${ord.price}.\nЖдем вашего подтверждения! СЦ More Case.`;
             } else if (ord.status === 'На диагностике') {
-                text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} принято на диагностику (трек: ${ord.track}). Ожидайте результатов проверки. СЦ TEXNOFON.`;
+                text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} принято на диагностику (трек: ${ord.track}). Ожидайте результатов проверки. СЦ More Case.`;
             } else {
-                text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} (трек: ${ord.track}) принято в работу. Сумма: ${ord.price}. Срок: ${ord.deadline}. СЦ TEXNOFON.`;
+                text = `Здравствуйте, ${ord.name}! Ваше устройство ${ord.model} (трек: ${ord.track}) принято в работу. Сумма: ${ord.price}. Срок: ${ord.deadline}. СЦ More Case.`;
             }
 
             if (ord.diagRefusalPrice && ord.diagRefusalPrice !== 'нет' && ord.status === 'На диагностике') {
@@ -970,7 +1186,7 @@
             const modalContainer = document.getElementById('receiptContentContainer');
             modalContainer.innerHTML = `
                 <div class="receipt-header">
-                    <h2>TEXNOFON</h2>
+                    <h2>MORE CASE</h2>
                     <p>${isDone ? 'Квитанция о выдаче' : 'Квитанция приема в ремонт'}</p>
                     <p style="margin-top: 4px; font-weight: bold; font-size: 11px;">Режим работы: ежедневно с 10:00 до 21:00</p>
                 </div>
@@ -1000,7 +1216,7 @@
                     </div>
                 </div>
                 <div class="receipt-footer">
-                    Спасибо, что выбрали TEXNOFON!<br>
+                    Спасибо, что выбрали More Case!<br>
                     ${isDone ? 'Аппарат выдан исправным, претензий не имею.' : 'Сохраняйте квитанцию до выдачи аппарата.'}
                 </div>
             `;
@@ -1029,7 +1245,7 @@
                         closedDate: closedDateFormatted
                     });
                 } catch (e) {
-                    console.error("Ошибка смены статуса в Firebase:", e);
+                    console.error("Ошибка выдачи:", e);
                 }
             }
         }
@@ -1047,7 +1263,7 @@
                 try {
                     await window.FB_SDK.updateDoc(window.FB_SDK.doc(window.firebaseDb, "orders", ord.firebaseId), updateData);
                 } catch (e) {
-                    console.error("Ошибка смены статуса в Firebase:", e);
+                    console.error("Ошибка смены статуса:", e);
                 }
             }
         }
@@ -1061,7 +1277,7 @@
                     try {
                         await window.FB_SDK.deleteDoc(window.FB_SDK.doc(window.firebaseDb, "orders", ord.firebaseId));
                     } catch (e) {
-                        console.error("Ошибка удаления из Firebase:", e);
+                        console.error("Ошибка удаления:", e);
                     }
                 }
             }
@@ -1069,3 +1285,4 @@
     </script>
 </body>
 </html>
+
