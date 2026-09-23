@@ -9,7 +9,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // Ваши новые настройки Firebase для проекта More Case
+        // Ваши настройки Firebase для проекта More Case
         const firebaseConfig = {
           apiKey: "AIzaSyBLuxMsC0Izs7vdt9yiHcWF0yoVY_AyZ98",
           authDomain: "morecase-d1b59.firebaseapp.com",
@@ -465,7 +465,7 @@
             <form id="orderForm">
                 <div class="form-group">
                     <label>Модель телефона:</label>
-                    <input type="text" id="model" required placeholder="Например: Samsung Galaxy A24 / iPhone 11">
+                    <input type="text" id="model" required placeholder="Например: Samsung Galaxy A24 / iPhone 11" oninput="updateWarehouseSelect()">
                 </div>
                 <div class="form-group">
                     <label>Неисправность / Что делать:</label>
@@ -726,9 +726,23 @@
         function updateWarehouseSelect() {
             const select = document.getElementById('warehousePartSelect');
             if(!select) return;
+            
+            // Получаем то, что пользователь ввел в поле модели телефона
+            const modelInput = document.getElementById('model').value.toLowerCase().trim();
+
             select.innerHTML = '<option value="">-- Выберите запчасть со склада (необязательно) --</option>';
+            
             warehouse.forEach(p => {
                 if(p.quantity > 0) {
+                    const partModel = (p.model || '').toLowerCase();
+                    const partName = (p.name || '').toLowerCase();
+
+                    // Если модель введена, показываем только те запчасти, у которых модель совпадает или название содержит введенный текст
+                    if (modelInput) {
+                        const isMatch = partModel.includes(modelInput) || partName.includes(modelInput);
+                        if (!isMatch) return; // Пропускаем запчасти не для этой модели
+                    }
+
                     select.innerHTML += `<option value="${p.firebaseId}">${p.name} (${p.model}) — Остаток: ${p.quantity} шт. | Закупка: ${p.cost} руб.</option>`;
                 }
             });
@@ -749,6 +763,9 @@
                 if(!currentIssue) {
                     document.getElementById('issue').value = part.name;
                 }
+                // Обновляем список, чтобы зафиксировать выбор
+                updateWarehouseSelect();
+                document.getElementById('warehousePartSelect').value = selectId;
             }
         }
 
@@ -812,6 +829,7 @@
             document.getElementById('issue').value = '';
             document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
             selectedWarehousePartId = null;
+            updateWarehouseSelect();
 
             if (window.isFirebaseConnected && window.firebaseDb) {
                 try {
@@ -924,6 +942,8 @@
 
             const partData = { name, model, quantity, cost };
 
+            closePartModal();
+
             if(window.isFirebaseConnected && window.firebaseDb) {
                 try {
                     if(partId) {
@@ -934,12 +954,8 @@
                 } catch(e) {
                     console.error("Ошибка сохранения запчасти:", e);
                     alert("Ошибка сохранения в базу!");
-                    return;
                 }
             }
-            
-            // ИСПРАВЛЕНИЕ: Окно обязательно закрывается после сохранения!
-            closePartModal();
         }
 
         async function deletePart(partId) {
