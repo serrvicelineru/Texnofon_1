@@ -964,26 +964,26 @@
             const ord = orders.find(o => o.firebaseId === firebaseId);
             if (!ord) return;
 
-            // Если заказ выдан, показываем дату выдачи, иначе дату приема
-            const displayDate = ord.status === 'Выдан' && ord.closedDate ? ord.closedDate : ord.date;
+            const isDone = ord.status === 'Выдан';
+            const displayDate = isDone && ord.closedDate ? ord.closedDate : ord.date;
 
             const modalContainer = document.getElementById('receiptContentContainer');
             modalContainer.innerHTML = `
                 <div class="receipt-header">
                     <h2>MORE CASE</h2>
-                    <p>Квитанция приема в ремонт</p>
+                    <p>${isDone ? 'Квитанция о выдаче' : 'Квитанция приема в ремонт'}</p>
                     <p style="margin-top: 4px; font-weight: bold; font-size: 11px;">Режим работы: ежедневно с 10:00 до 21:00</p>
                 </div>
                 <div class="receipt-body">
                     <div><span>Трек-код:</span> <b>${ord.track}</b></div>
                     <div><span>Статус:</span> <b>${ord.status}</b></div>
-                    <div><span>Дата и время:</span> <b>${displayDate}</b></div>
+                    <div><span>${isDone ? 'Дата выдачи:' : 'Дата приема:'}</span> <b>${displayDate}</b></div>
                     <div><span>Клиент:</span> <b>${ord.name}</b></div>
                     <div><span>Телефон:</span> <b>${ord.phone}</b></div>
                     <div><span>Устройство:</span> <b>${ord.model}</b></div>
                     <div><span>Неисправность:</span> <b>${ord.issue}</b></div>
-                    ${ord.diagRefusalPrice && ord.diagRefusalPrice !== 'нет' ? `<div><span>Диаг. при отказе:</span> <b>${ord.diagRefusalPrice}</b></div>` : ''}
-                    <div><span>Срок выдачи:</span> <b>${ord.deadline}</b></div>
+                    ${ord.diagRefusalPrice && ord.diagRefusalPrice !== 'нет' && !isDone ? `<div><span>Диаг. при отказе:</span> <b>${ord.diagRefusalPrice}</b></div>` : ''}
+                    ${!isDone ? `<div><span>Срок выдачи:</span> <b>${ord.deadline}</b></div>` : ''}
                     <div><span>Сумма к оплате:</span> <b>${ord.price}</b></div>
                 </div>
                 <div class="receipt-rules">
@@ -1001,7 +1001,7 @@
                 </div>
                 <div class="receipt-footer">
                     Спасибо, что выбрали More Case!<br>
-                    Сохраняйте квитанцию до выдачи аппарата.
+                    ${isDone ? 'Аппарат выдан исправным, претензий не имею.' : 'Сохраняйте квитанцию до выдачи аппарата.'}
                 </div>
             `;
             document.getElementById('printModal').style.display = 'flex';
@@ -1040,7 +1040,7 @@
 
             let updateData = { status: newStatus };
             if (newStatus !== 'Выдан') {
-                updateData.closedDate = ''; // сбрасываем дату выдачи, если вернули из архива
+                updateData.closedDate = ''; 
             }
 
             if (window.isFirebaseConnected && window.firebaseDb && ord.firebaseId) {
