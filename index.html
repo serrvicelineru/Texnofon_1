@@ -9,14 +9,14 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // Новые настройки Firebase для проекта More Case
+        // Ваши новые настройки Firebase для проекта More Case
         const firebaseConfig = {
-          apiKey: "AIzaSyAA93fSl7LjsA45MTmmoSF1JuacvT1Es9k",
+          apiKey: "AIzaSyBLuxMsC0Izs7vdt9yiHcWF0yoVY_AyZ98",
           authDomain: "morecase-d1b59.firebaseapp.com",
           projectId: "morecase-d1b59",
           storageBucket: "morecase-d1b59.firebasestorage.app",
-          messagingSenderId: "1003820502664",
-          appId: "1:1003820502664:web:f0db687d0b54b6f095593d"
+          messagingSenderId: "169164287376",
+          appId: "1:169164287376:web:40594f4acd3cfe4dff1715"
         };
 
         let db = null;
@@ -661,7 +661,7 @@
 
         function initDataLayer() {
             if (window.isFirebaseConnected && window.firebaseDb) {
-                // Загрузка заказов
+                // Загрузка заказов из Firestore в реальном времени
                 const qOrders = window.FB_SDK.query(window.FB_SDK.collection(window.firebaseDb, "orders"), window.FB_SDK.orderBy("createdAt", "desc"));
                 window.FB_SDK.onSnapshot(qOrders, (snapshot) => {
                     orders = [];
@@ -673,7 +673,7 @@
                     console.error("Ошибка чтения заказов:", error);
                 });
 
-                // Загрузка склада
+                // Загрузка склада из Firestore в реальном времени
                 const qWarehouse = window.FB_SDK.query(window.FB_SDK.collection(window.firebaseDb, "warehouse"), window.FB_SDK.orderBy("name"));
                 window.FB_SDK.onSnapshot(qWarehouse, (snapshot) => {
                     warehouse = [];
@@ -681,15 +681,14 @@
                         warehouse.push({ firebaseId: docSnap.id, ...docSnap.data() });
                     });
                     updateWarehouseSelect();
-                    if (document.getElementById('tab-warehouse').classList.contains('active')) {
-                        renderWarehouse();
-                    }
+                    renderWarehouse();
                 }, (error) => {
                     console.error("Ошибка чтения склада:", error);
                 });
 
             } else {
                 document.getElementById('ordersContainer').innerHTML = '<p style="text-align: center; color: #ef4444; padding: 20px;">Firebase не настроен!</p>';
+                document.getElementById('warehouseContainer').innerHTML = '<p style="text-align: center; color: #ef4444; padding: 20px;">Firebase не настроен!</p>';
             }
         }
 
@@ -726,6 +725,7 @@
 
         function updateWarehouseSelect() {
             const select = document.getElementById('warehousePartSelect');
+            if(!select) return;
             select.innerHTML = '<option value="">-- Выберите запчасть со склада (необязательно) --</option>';
             warehouse.forEach(p => {
                 if(p.quantity > 0) {
@@ -794,7 +794,7 @@
                 warehousePartId: selectedWarehousePartId || ''
             };
 
-            // Автоматическое списание со склада, если была выбрана запчасть
+            // Автоматическое списание со склада в Firebase
             if (selectedWarehousePartId && window.isFirebaseConnected && window.firebaseDb) {
                 const part = warehouse.find(p => p.firebaseId === selectedWarehousePartId);
                 if (part && part.quantity > 0) {
@@ -828,7 +828,8 @@
 
         function saveAndRender() {
             const activeOrdersCount = orders.filter(o => o.status !== 'Выдан').length;
-            document.getElementById('orderCount').textContent = activeOrdersCount;
+            const countEl = document.getElementById('orderCount');
+            if(countEl) countEl.textContent = activeOrdersCount;
             updateStats();
             if (document.getElementById('tab-list').classList.contains('active')) {
                 renderOrders();
@@ -836,7 +837,9 @@
         }
 
         function updateStats() {
-            const period = document.getElementById('reportPeriod').value;
+            const periodElem = document.getElementById('reportPeriod');
+            if(!periodElem) return;
+            const period = periodElem.value;
             const now = new Date();
             
             let countPhones = 0;
@@ -930,8 +933,12 @@
                     }
                 } catch(e) {
                     console.error("Ошибка сохранения запчасти:", e);
+                    alert("Ошибка сохранения в базу!");
+                    return;
                 }
             }
+            
+            // ИСПРАВЛЕНИЕ: Окно обязательно закрывается после сохранения!
             closePartModal();
         }
 
@@ -949,7 +956,9 @@
 
         function renderWarehouse() {
             const container = document.getElementById('warehouseContainer');
-            const searchQuery = document.getElementById('searchPartInput').value.toLowerCase().trim();
+            if(!container) return;
+            const searchInput = document.getElementById('searchPartInput');
+            const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
             let filtered = warehouse.filter(p => {
                 return (p.name + ' ' + (p.model || '')).toLowerCase().includes(searchQuery);
@@ -1088,7 +1097,9 @@
 
         function renderOrders() {
             const container = document.getElementById('ordersContainer');
-            const searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+            if(!container) return;
+            const searchInput = document.getElementById('searchInput');
+            const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
             let filteredOrders = orders.filter(ord => {
                 const matchText = ((ord.track || '') + ' ' + (ord.name || '') + ' ' + (ord.phone || '') + ' ' + (ord.model || '') + ' ' + (ord.issue || '') + ' ' + (ord.masterNote || '')).toLowerCase();
